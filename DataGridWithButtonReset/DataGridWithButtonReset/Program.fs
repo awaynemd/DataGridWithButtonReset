@@ -112,13 +112,14 @@ module App =
       { OutterRows: OutterRow.Model list
         SelectedOutterRow: Guid option }
 
-   let init () =
+   let init ()=
      {  OutterRows = [0 .. 2] |> List.map OutterRow.init
         SelectedOutterRow = None }
 
    type Msg =
       | Select of Guid option
       | RowMsg of Guid * OutterRow.Msg
+      | Reset
 
    let update msg m =
       match msg with
@@ -128,6 +129,8 @@ module App =
             m.OutterRows
             |> List.map (fun r -> if r.Id = rId then OutterRow.update msg r else r )  // OutterRow.reset msg r
           { m with OutterRows = rows }
+      | Reset -> init () 
+
 
    let bindings () : Binding<Model,Msg> list  = [
         "Rows" |> Binding.subModelSeq(
@@ -138,6 +141,8 @@ module App =
             OutterRow.bindings)
 
         "SelectedRow" |> Binding.subModelSelectedItem("Rows", (fun m -> m.SelectedOutterRow), Select)
+
+        "Reset" |> Binding.cmd (fun m -> Reset)  // Reset is a Msg. The Msg is acted upon by update.
    ]
 
     [<EntryPoint; STAThread>]
