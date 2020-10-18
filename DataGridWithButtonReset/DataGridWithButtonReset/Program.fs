@@ -1,4 +1,4 @@
-namespace DataGridWithButtonReset
+﻿namespace DataGridWithButtonReset
 
 open System
 open Elmish
@@ -37,6 +37,10 @@ module Column =
           InnerRows = [0 .. 2] |> List.map (Cell.init i j) 
           SelectedInnerRow = None }
 
+    let isSelectMsg = function
+      | Select (Some _) -> true
+      | _ -> false
+
     let deselect m =
       { m with SelectedInnerRow = None }
           
@@ -74,6 +78,10 @@ module OutterRow =
           OutterRowName = sprintf "RowName %i" i
           Columns =  [0 .. 3] |> List.map (Column.init i) 
           SelectedColumn = None }
+
+    let isSelectCellMsg = function
+      | ColumnMsg (_, msg) -> msg |> Column.isSelectMsg
+      | _ -> false
 
     let deselectCells m =
       { m with Columns = m.Columns |> List.map Column.deselect }
@@ -137,14 +145,19 @@ module App =
      { m with SelectedOutterRow = None
               OutterRows = m.OutterRows |> List.map OutterRow.deselectAll }
 
+   let updateOutterRow rId msg m =
+     let rows =
+       m.OutterRows
+       |> List.map (fun r -> if r.Id = rId then OutterRow.update msg r else r )  // OutterRow.reset msg r
+     { m with OutterRows = rows }
+
    let update msg m =
       match msg with
       | Select rId -> { m with SelectedOutterRow = rId }
       | RowMsg (rId, msg) ->
-          let rows =
-            m.OutterRows
-            |> List.map (fun r -> if r.Id = rId then OutterRow.update msg r else r )  // OutterRow.reset msg r
-          { m with OutterRows = rows }
+          m
+          |> if OutterRow.isSelectCellMsg msg then deselectCells else id
+          |> updateOutterRow rId msg
       | Reset -> init ()
       | DeselectAll -> m |> deselectAll
       | DeselectCells -> m |> deselectCells
