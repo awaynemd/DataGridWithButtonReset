@@ -5,7 +5,9 @@ open Elmish
 open Elmish.WPF
 open DataGridWithButtonReset.View
 
+
 module Cell =
+
     type Model =
         { Id: Guid
           CellName: string }
@@ -21,6 +23,7 @@ module Cell =
 
 
 module Column =
+
     type Model =
         { Id: Guid
           InnerRows: Cell.Model list
@@ -32,20 +35,16 @@ module Column =
     let init i j =
         { Id = Guid.NewGuid ()
           InnerRows = [0 .. 2] |> List.map (Cell.init i j) 
-          SelectedInnerRow = None}
+          SelectedInnerRow = None }
           
     let update msg m =
         match msg with
         | Select id -> { m with SelectedInnerRow = id }
 
-    let reset  i j =
-        init i j
-        
-
-    let bindings() = [
+    let bindings () = [
         "InnerRows" |> Binding.subModelSeq(
             (fun (_, p) -> p.InnerRows),
-            (fun ((b, p), c) -> (p.SelectedInnerRow = Some c.Id, c)),
+            (fun ((_, p), c) -> (p.SelectedInnerRow = Some c.Id, c)),
             (fun (_, c) -> c.Id),
             snd,
             Cell.bindings)
@@ -60,12 +59,11 @@ module OutterRow =
       { Id: Guid
         OutterRowName: string
         Columns: Column.Model list 
-        SelectedColumn: Guid option}
+        SelectedColumn: Guid option }
 
     type Msg =
         | Select of Guid option
         | ColumnMsg of Guid * Column.Msg
-         
      
 
     let init i =
@@ -74,7 +72,6 @@ module OutterRow =
           Columns =  [0 .. 3] |> List.map (Column.init i) 
           SelectedColumn = None }
 
-    
     let update msg m =
       match msg with
       | Select id -> { m with SelectedColumn = id }
@@ -94,7 +91,7 @@ module OutterRow =
             { m with Columns = columns } 
    *)
 
-    let bindings() = [
+    let bindings () = [
         "RowTime" |> Binding.oneWay(fun (b, p) -> p.OutterRowName + (if b then " - Selected" else ""))
 
         "Columns" |> Binding.subModelSeq(
@@ -112,14 +109,19 @@ module App =
       { OutterRows: OutterRow.Model list
         SelectedOutterRow: Guid option }
 
-   let init ()=
-     {  OutterRows = [0 .. 2] |> List.map OutterRow.init
-        SelectedOutterRow = None }
-
    type Msg =
       | Select of Guid option
       | RowMsg of Guid * OutterRow.Msg
       | Reset
+
+
+   let init () =
+     {  OutterRows = [0 .. 2] |> List.map OutterRow.init
+        SelectedOutterRow = None }
+
+   let deselect m =
+     { m with OutterRows = m.OutterRows |> List.map OutterRow.deselect
+              SelectedOutterRow = None }
 
    let update msg m =
       match msg with
@@ -129,7 +131,7 @@ module App =
             m.OutterRows
             |> List.map (fun r -> if r.Id = rId then OutterRow.update msg r else r )  // OutterRow.reset msg r
           { m with OutterRows = rows }
-      | Reset -> init () 
+      | Reset -> init ()
 
 
    let bindings () : Binding<Model,Msg> list  = [
