@@ -5,7 +5,9 @@ open Elmish
 open Elmish.WPF
 open DataGridWithButtonReset.View
 
+
 module Cell =
+
     type Model =
         { Id: Guid
           CellName: string }
@@ -21,6 +23,7 @@ module Cell =
 
 
 module Column =
+
     type Model =
         { Id: Guid
           InnerRows: Cell.Model list
@@ -32,20 +35,23 @@ module Column =
     let init i j =
         { Id = Guid.NewGuid ()
           InnerRows = [0 .. 2] |> List.map (Cell.init i j) 
-          SelectedInnerRow = None}
+          SelectedInnerRow = None }
+
+    let isSelectMsg = function
+      | Select (Some _) -> true
+      | _ -> false
+
+    let deselect m =
+      { m with SelectedInnerRow = None }
           
     let update msg m =
         match msg with
         | Select id -> { m with SelectedInnerRow = id }
 
-    let reset  i j =
-        init i j
-        
-
-    let bindings() = [
+    let bindings () = [
         "InnerRows" |> Binding.subModelSeq(
             (fun (_, p) -> p.InnerRows),
-            (fun ((b, p), c) -> (p.SelectedInnerRow = Some c.Id, c)),
+            (fun ((_, p), c) -> (p.SelectedInnerRow = Some c.Id, c)),
             (fun (_, c) -> c.Id),
             snd,
             Cell.bindings)
@@ -60,12 +66,11 @@ module OutterRow =
       { Id: Guid
         OutterRowName: string
         Columns: Column.Model list 
-        SelectedColumn: Guid option}
+        SelectedColumn: Guid option }
 
     type Msg =
         | Select of Guid option
         | ColumnMsg of Guid * Column.Msg
-         
      
 
     let init i =
@@ -74,6 +79,15 @@ module OutterRow =
           Columns =  [0 .. 3] |> List.map (Column.init i) 
           SelectedColumn = None }
 
+    let isSelectCellMsg = function
+      | ColumnMsg (_, msg) -> msg |> Column.isSelectMsg
+      | _ -> false
+
+    let deselectCells m =
+      { m with Columns = m.Columns |> List.map Column.deselect }
+
+    let deselectAll m =
+      { m with SelectedColumn = None } |> deselectCells
     
     let update msg m =
       match msg with
@@ -94,7 +108,7 @@ module OutterRow =
             { m with Columns = columns } 
    *)
 
-    let bindings() = [
+    let bindings () = [
         "RowTime" |> Binding.oneWay(fun (b, p) -> p.OutterRowName + (if b then " - Selected" else ""))
 
         "Columns" |> Binding.subModelSeq(
@@ -112,24 +126,41 @@ module App =
       { OutterRows: OutterRow.Model list
         SelectedOutterRow: Guid option }
 
-   let init ()=
-     {  OutterRows = [0 .. 2] |> List.map OutterRow.init
-        SelectedOutterRow = None }
-
    type Msg =
       | Select of Guid option
       | RowMsg of Guid * OutterRow.Msg
       | Reset
+      | DeselectAll
+      | DeselectCells
+
+
+   let init () =
+     {  OutterRows = [0 .. 2] |> List.map OutterRow.init
+        SelectedOutterRow = None }
+
+   let deselectCells m =
+     { m with OutterRows = m.OutterRows |> List.map OutterRow.deselectCells }
+
+   let deselectAll m =
+     { m with SelectedOutterRow = None
+              OutterRows = m.OutterRows |> List.map OutterRow.deselectAll }
+
+   let updateOutterRow rId msg m =
+     let rows =
+       m.OutterRows
+       |> List.map (fun r -> if r.Id = rId then OutterRow.update msg r else r )  // OutterRow.reset msg r
+     { m with OutterRows = rows }
 
    let update msg m =
       match msg with
       | Select rId -> { m with SelectedOutterRow = rId }
       | RowMsg (rId, msg) ->
-          let rows =
-            m.OutterRows
-            |> List.map (fun r -> if r.Id = rId then OutterRow.update msg r else r )  // OutterRow.reset msg r
-          { m with OutterRows = rows }
-      | Reset -> init () 
+          m
+          |> if OutterRow.isSelectCellMsg msg then deselectCells else id
+          |> updateOutterRow rId msg
+      | Reset -> init ()
+      | DeselectAll -> m |> deselectAll
+      | DeselectCells -> m |> deselectCells
 
 
    let bindings () : Binding<Model,Msg> list  = [
@@ -143,6 +174,8 @@ module App =
         "SelectedRow" |> Binding.subModelSelectedItem("Rows", (fun m -> m.SelectedOutterRow), Select)
 
         "Reset" |> Binding.cmd (fun m -> Reset)  // Reset is a Msg. The Msg is acted upon by update.
+        "DeselectAll" |> Binding.cmd (fun m -> DeselectAll)
+        "DeselectCells" |> Binding.cmd (fun m -> DeselectCells)
    ]
 
     [<EntryPoint; STAThread>]
