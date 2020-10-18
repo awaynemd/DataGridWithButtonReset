@@ -75,9 +75,11 @@ module OutterRow =
           Columns =  [0 .. 3] |> List.map (Column.init i) 
           SelectedColumn = None }
 
+    let deselectCells m =
+      { m with Columns = m.Columns |> List.map Column.deselect }
+
     let deselectAll m =
-      { m with Columns = m.Columns |> List.map Column.deselect
-               SelectedColumn = None }
+      { m with SelectedColumn = None } |> deselectCells
     
     let update msg m =
       match msg with
@@ -121,15 +123,19 @@ module App =
       | RowMsg of Guid * OutterRow.Msg
       | Reset
       | DeselectAll
+      | DeselectCells
 
 
    let init () =
      {  OutterRows = [0 .. 2] |> List.map OutterRow.init
         SelectedOutterRow = None }
 
+   let deselectCells m =
+     { m with OutterRows = m.OutterRows |> List.map OutterRow.deselectCells }
+
    let deselectAll m =
-     { m with OutterRows = m.OutterRows |> List.map OutterRow.deselectAll
-              SelectedOutterRow = None }
+     { m with SelectedOutterRow = None
+              OutterRows = m.OutterRows |> List.map OutterRow.deselectAll }
 
    let update msg m =
       match msg with
@@ -141,6 +147,7 @@ module App =
           { m with OutterRows = rows }
       | Reset -> init ()
       | DeselectAll -> m |> deselectAll
+      | DeselectCells -> m |> deselectCells
 
 
    let bindings () : Binding<Model,Msg> list  = [
@@ -155,6 +162,7 @@ module App =
 
         "Reset" |> Binding.cmd (fun m -> Reset)  // Reset is a Msg. The Msg is acted upon by update.
         "DeselectAll" |> Binding.cmd (fun m -> DeselectAll)
+        "DeselectCells" |> Binding.cmd (fun m -> DeselectCells)
    ]
 
     [<EntryPoint; STAThread>]
