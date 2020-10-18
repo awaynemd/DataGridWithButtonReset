@@ -1,4 +1,4 @@
-﻿namespace DataGridWithButtonReset
+namespace DataGridWithButtonReset
 
 open System
 open Elmish
@@ -36,6 +36,9 @@ module Column =
         { Id = Guid.NewGuid ()
           InnerRows = [0 .. 2] |> List.map (Cell.init i j) 
           SelectedInnerRow = None }
+
+    let deselect m =
+      { m with SelectedInnerRow = None }
           
     let update msg m =
         match msg with
@@ -72,6 +75,10 @@ module OutterRow =
           Columns =  [0 .. 3] |> List.map (Column.init i) 
           SelectedColumn = None }
 
+    let deselectAll m =
+      { m with Columns = m.Columns |> List.map Column.deselect
+               SelectedColumn = None }
+    
     let update msg m =
       match msg with
       | Select id -> { m with SelectedColumn = id }
@@ -113,14 +120,15 @@ module App =
       | Select of Guid option
       | RowMsg of Guid * OutterRow.Msg
       | Reset
+      | DeselectAll
 
 
    let init () =
      {  OutterRows = [0 .. 2] |> List.map OutterRow.init
         SelectedOutterRow = None }
 
-   let deselect m =
-     { m with OutterRows = m.OutterRows |> List.map OutterRow.deselect
+   let deselectAll m =
+     { m with OutterRows = m.OutterRows |> List.map OutterRow.deselectAll
               SelectedOutterRow = None }
 
    let update msg m =
@@ -132,6 +140,7 @@ module App =
             |> List.map (fun r -> if r.Id = rId then OutterRow.update msg r else r )  // OutterRow.reset msg r
           { m with OutterRows = rows }
       | Reset -> init ()
+      | DeselectAll -> m |> deselectAll
 
 
    let bindings () : Binding<Model,Msg> list  = [
@@ -145,6 +154,7 @@ module App =
         "SelectedRow" |> Binding.subModelSelectedItem("Rows", (fun m -> m.SelectedOutterRow), Select)
 
         "Reset" |> Binding.cmd (fun m -> Reset)  // Reset is a Msg. The Msg is acted upon by update.
+        "DeselectAll" |> Binding.cmd (fun m -> DeselectAll)
    ]
 
     [<EntryPoint; STAThread>]
